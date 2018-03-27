@@ -8,7 +8,7 @@ Redis Sentinel support for [redigo](https://github.com/gomodule/redigo) library.
 Documentation
 -------------
 
-- [API Reference](http://godoc.org/github.com/FZambia/go-sentinel)
+- [API Reference](http://godoc.org/github.com/FZambia/sentinel)
 
 License
 -------
