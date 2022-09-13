@@ -191,10 +191,8 @@ func (s *Sentinel) newPool(addr string) *redis.Pool {
 // close connection pool to Sentinel.
 // Lock must be hold by caller.
 func (s *Sentinel) close() {
-	if s.pools != nil {
-		for _, pool := range s.pools {
-			pool.Close()
-		}
+	for _, pool := range s.pools {
+		pool.Close()
 	}
 	s.pools = nil
 }
