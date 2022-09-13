@@ -306,10 +306,7 @@ func (s *Sentinel) Close() error {
 // then you are OK.
 func TestRole(c redis.Conn, expectedRole string) bool {
 	role, err := getRole(c)
-	if err != nil || role != expectedRole {
-		return false
-	}
-	return true
+	return err == nil && role == expectedRole
 }
 
 // getRole is a convenience function supplied to query an instance (master or
