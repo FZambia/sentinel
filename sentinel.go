@@ -162,11 +162,6 @@ func (s *Sentinel) defaultPool(addr string) *redis.Pool {
 	}
 }
 
-func (s *Sentinel) get(addr string) redis.Conn {
-	pool := s.poolForAddr(addr)
-	return pool.Get()
-}
-
 func (s *Sentinel) poolForAddr(addr string) *redis.Pool {
 	s.mu.Lock()
 	if s.pools == nil {
@@ -216,7 +211,7 @@ func (s *Sentinel) doUntilSuccess(f func(redis.Conn) (interface{}, error)) (inte
 	var lastErr error
 
 	for _, addr := range addrs {
-		conn := s.get(addr)
+		conn := s.poolForAddr(addr).Get()
 		reply, err := f(conn)
 		conn.Close()
 		if err != nil {
