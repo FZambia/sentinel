@@ -341,9 +341,9 @@ func queryForSlaveAddrs(conn redis.Conn, masterName string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	slaveAddrs := make([]string, 0)
-	for _, slave := range slaves {
-		slaveAddrs = append(slaveAddrs, slave.Addr())
+	slaveAddrs := make([]string, len(slaves))
+	for i, slave := range slaves {
+		slaveAddrs[i] = slave.Addr()
 	}
 	return slaveAddrs, nil
 }
@@ -353,18 +353,13 @@ func queryForSlaves(conn redis.Conn, masterName string) ([]*Slave, error) {
 	if err != nil {
 		return nil, err
 	}
-	slaves := make([]*Slave, 0)
-	for _, a := range res {
+	slaves := make([]*Slave, len(res))
+	for i, a := range res {
 		sm, err := redis.StringMap(a, err)
 		if err != nil {
-			return slaves, err
+			return nil, err
 		}
-		slave := &Slave{
-			ip:    sm["ip"],
-			port:  sm["port"],
-			flags: sm["flags"],
-		}
-		slaves = append(slaves, slave)
+		slaves[i] = &Slave{ip: sm["ip"], port: sm["port"], flags: sm["flags"]}
 	}
 	return slaves, nil
 }
@@ -374,13 +369,13 @@ func queryForSentinels(conn redis.Conn, masterName string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	sentinels := make([]string, 0)
-	for _, a := range res {
+	sentinels := make([]string, len(res))
+	for i, a := range res {
 		sm, err := redis.StringMap(a, err)
 		if err != nil {
-			return sentinels, err
+			return nil, err
 		}
-		sentinels = append(sentinels, fmt.Sprintf("%s:%s", sm["ip"], sm["port"]))
+		sentinels[i] = fmt.Sprintf("%s:%s", sm["ip"], sm["port"])
 	}
 	return sentinels, nil
 }
