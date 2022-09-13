@@ -235,24 +235,16 @@ func (s *Sentinel) doUntilSuccess(f func(redis.Conn) (interface{}, error)) (inte
 
 // MasterAddr returns an address of current Redis master instance.
 func (s *Sentinel) MasterAddr() (string, error) {
-	res, err := s.doUntilSuccess(func(c redis.Conn) (interface{}, error) {
+	return redis.String(s.doUntilSuccess(func(c redis.Conn) (interface{}, error) {
 		return queryForMaster(c, s.MasterName)
-	})
-	if err != nil {
-		return "", err
-	}
-	return res.(string), nil
+	}))
 }
 
 // SlaveAddrs returns a slice with known slave addresses of current master instance.
 func (s *Sentinel) SlaveAddrs() ([]string, error) {
-	res, err := s.doUntilSuccess(func(c redis.Conn) (interface{}, error) {
+	return redis.Strings(s.doUntilSuccess(func(c redis.Conn) (interface{}, error) {
 		return queryForSlaveAddrs(c, s.MasterName)
-	})
-	if err != nil {
-		return nil, err
-	}
-	return res.([]string), nil
+	}))
 }
 
 // Slave represents a Redis slave instance which is known by Sentinel.
@@ -285,13 +277,9 @@ func (s *Sentinel) Slaves() ([]*Slave, error) {
 
 // SentinelAddrs returns a slice of known Sentinel addresses Sentinel server aware of.
 func (s *Sentinel) SentinelAddrs() ([]string, error) {
-	res, err := s.doUntilSuccess(func(c redis.Conn) (interface{}, error) {
+	return redis.Strings(s.doUntilSuccess(func(c redis.Conn) (interface{}, error) {
 		return queryForSentinels(c, s.MasterName)
-	})
-	if err != nil {
-		return nil, err
-	}
-	return res.([]string), nil
+	}))
 }
 
 // Discover allows to update list of known Sentinel addresses. From docs:
