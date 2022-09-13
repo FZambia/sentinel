@@ -164,24 +164,20 @@ func (s *Sentinel) defaultPool(addr string) *redis.Pool {
 
 func (s *Sentinel) poolForAddr(addr string) *redis.Pool {
 	s.mu.Lock()
-	if s.pools == nil {
-		s.pools = make(map[string]*redis.Pool)
-	}
-	pool, ok := s.pools[addr]
-	if ok {
-		s.mu.Unlock()
+	defer s.mu.Unlock()
+	if pool, ok := s.pools[addr]; ok {
 		return pool
 	}
 	s.mu.Unlock()
 	newPool := s.newPool(addr)
 	s.mu.Lock()
-	p, ok := s.pools[addr]
-	if ok {
-		s.mu.Unlock()
-		return p
+	if pool, ok := s.pools[addr]; ok {
+		return pool
+	}
+	if s.pools == nil {
+		s.pools = make(map[string]*redis.Pool)
 	}
 	s.pools[addr] = newPool
-	s.mu.Unlock()
 	return newPool
 }
 
