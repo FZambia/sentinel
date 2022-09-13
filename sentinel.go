@@ -104,44 +104,30 @@ func (ns NoSentinelsAvailable) Error() string {
 // start of the list, so that at the next reconnection, we'll try first
 // the Sentinel that was reachable in the previous connection attempt,
 // minimizing latency.
-//
-// Lock must be held by caller.
 func (s *Sentinel) putToTop(addr string) {
-	addrs := s.Addrs
-	if addrs[0] == addr {
-		// Already on top.
-		return
-	}
-	newAddrs := []string{addr}
-	for _, a := range addrs {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, a := range s.Addrs {
 		if a == addr {
-			continue
+			s.Addrs[0], s.Addrs[i] = s.Addrs[i], s.Addrs[0]
+			break
 		}
-		newAddrs = append(newAddrs, a)
 	}
-	s.Addrs = newAddrs
 }
 
 // putToBottom puts Sentinel address to the bottom of address list.
 // We call this method internally when see that some Sentinel failed to answer
 // on application request so next time we start with another one.
-//
-// Lock must be held by caller.
 func (s *Sentinel) putToBottom(addr string) {
-	addrs := s.Addrs
-	if addrs[len(addrs)-1] == addr {
-		// Already on bottom.
-		return
-	}
-	newAddrs := []string{}
-	for _, a := range addrs {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, a := range s.Addrs {
 		if a == addr {
-			continue
+			copy(s.Addrs[i:], s.Addrs[i+1:])
+			s.Addrs[len(s.Addrs)-1] = a
+			break
 		}
-		newAddrs = append(newAddrs, a)
 	}
-	newAddrs = append(newAddrs, addr)
-	s.Addrs = newAddrs
 }
 
 // defaultPool returns a connection pool to one Sentinel. This allows
@@ -221,9 +207,7 @@ func (s *Sentinel) doUntilSuccess(f func(redis.Conn) (interface{}, error)) (inte
 		conn.Close()
 		if err != nil {
 			lastErr = err
-			s.mu.Lock()
 			s.putToBottom(addr)
-			s.mu.Unlock()
 			continue
 		}
 		s.putToTop(addr)
