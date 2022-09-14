@@ -148,31 +148,22 @@ func (s *Sentinel) defaultPool(addr string) *redis.Pool {
 	}
 }
 
-func (s *Sentinel) get(addr string) redis.Conn {
-	pool := s.poolForAddr(addr)
-	return pool.Get()
-}
-
 func (s *Sentinel) poolForAddr(addr string) *redis.Pool {
 	s.mu.Lock()
-	if s.pools == nil {
-		s.pools = make(map[string]*redis.Pool)
-	}
-	pool, ok := s.pools[addr]
-	if ok {
-		s.mu.Unlock()
+	defer s.mu.Unlock()
+	if pool, ok := s.pools[addr]; ok {
 		return pool
 	}
 	s.mu.Unlock()
 	newPool := s.newPool(addr)
 	s.mu.Lock()
-	p, ok := s.pools[addr]
-	if ok {
-		s.mu.Unlock()
-		return p
+	if pool, ok := s.pools[addr]; ok {
+		return pool
+	}
+	if s.pools == nil {
+		s.pools = make(map[string]*redis.Pool)
 	}
 	s.pools[addr] = newPool
-	s.mu.Unlock()
 	return newPool
 }
 
@@ -186,10 +177,8 @@ func (s *Sentinel) newPool(addr string) *redis.Pool {
 // close connection pool to Sentinel.
 // Lock must be hold by caller.
 func (s *Sentinel) close() {
-	if s.pools != nil {
-		for _, pool := range s.pools {
-			pool.Close()
-		}
+	for _, pool := range s.pools {
+		pool.Close()
 	}
 	s.pools = nil
 }
@@ -202,7 +191,7 @@ func (s *Sentinel) doUntilSuccess(f func(redis.Conn) (interface{}, error)) (inte
 	var lastErr error
 
 	for _, addr := range addrs {
-		conn := s.get(addr)
+		conn := s.poolForAddr(addr).Get()
 		reply, err := f(conn)
 		conn.Close()
 		if err != nil {
@@ -219,24 +208,16 @@ func (s *Sentinel) doUntilSuccess(f func(redis.Conn) (interface{}, error)) (inte
 
 // MasterAddr returns an address of current Redis master instance.
 func (s *Sentinel) MasterAddr() (string, error) {
-	res, err := s.doUntilSuccess(func(c redis.Conn) (interface{}, error) {
+	return redis.String(s.doUntilSuccess(func(c redis.Conn) (interface{}, error) {
 		return queryForMaster(c, s.MasterName)
-	})
-	if err != nil {
-		return "", err
-	}
-	return res.(string), nil
+	}))
 }
 
 // SlaveAddrs returns a slice with known slave addresses of current master instance.
 func (s *Sentinel) SlaveAddrs() ([]string, error) {
-	res, err := s.doUntilSuccess(func(c redis.Conn) (interface{}, error) {
+	return redis.Strings(s.doUntilSuccess(func(c redis.Conn) (interface{}, error) {
 		return queryForSlaveAddrs(c, s.MasterName)
-	})
-	if err != nil {
-		return nil, err
-	}
-	return res.([]string), nil
+	}))
 }
 
 // Slave represents a Redis slave instance which is known by Sentinel.
@@ -269,13 +250,9 @@ func (s *Sentinel) Slaves() ([]*Slave, error) {
 
 // SentinelAddrs returns a slice of known Sentinel addresses Sentinel server aware of.
 func (s *Sentinel) SentinelAddrs() ([]string, error) {
-	res, err := s.doUntilSuccess(func(c redis.Conn) (interface{}, error) {
+	return redis.Strings(s.doUntilSuccess(func(c redis.Conn) (interface{}, error) {
 		return queryForSentinels(c, s.MasterName)
-	})
-	if err != nil {
-		return nil, err
-	}
-	return res.([]string), nil
+	}))
 }
 
 // Discover allows to update list of known Sentinel addresses. From docs:
@@ -313,10 +290,7 @@ func (s *Sentinel) Close() error {
 // then you are OK.
 func TestRole(c redis.Conn, expectedRole string) bool {
 	role, err := getRole(c)
-	if err != nil || role != expectedRole {
-		return false
-	}
-	return true
+	return err == nil && role == expectedRole
 }
 
 // getRole is a convenience function supplied to query an instance (master or
@@ -351,9 +325,9 @@ func queryForSlaveAddrs(conn redis.Conn, masterName string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	slaveAddrs := make([]string, 0)
-	for _, slave := range slaves {
-		slaveAddrs = append(slaveAddrs, slave.Addr())
+	slaveAddrs := make([]string, len(slaves))
+	for i, slave := range slaves {
+		slaveAddrs[i] = slave.Addr()
 	}
 	return slaveAddrs, nil
 }
@@ -363,18 +337,13 @@ func queryForSlaves(conn redis.Conn, masterName string) ([]*Slave, error) {
 	if err != nil {
 		return nil, err
 	}
-	slaves := make([]*Slave, 0)
-	for _, a := range res {
+	slaves := make([]*Slave, len(res))
+	for i, a := range res {
 		sm, err := redis.StringMap(a, err)
 		if err != nil {
-			return slaves, err
+			return nil, err
 		}
-		slave := &Slave{
-			ip:    sm["ip"],
-			port:  sm["port"],
-			flags: sm["flags"],
-		}
-		slaves = append(slaves, slave)
+		slaves[i] = &Slave{ip: sm["ip"], port: sm["port"], flags: sm["flags"]}
 	}
 	return slaves, nil
 }
@@ -384,13 +353,13 @@ func queryForSentinels(conn redis.Conn, masterName string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	sentinels := make([]string, 0)
-	for _, a := range res {
+	sentinels := make([]string, len(res))
+	for i, a := range res {
 		sm, err := redis.StringMap(a, err)
 		if err != nil {
-			return sentinels, err
+			return nil, err
 		}
-		sentinels = append(sentinels, fmt.Sprintf("%s:%s", sm["ip"], sm["port"]))
+		sentinels[i] = fmt.Sprintf("%s:%s", sm["ip"], sm["port"])
 	}
 	return sentinels, nil
 }
