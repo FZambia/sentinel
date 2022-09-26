@@ -46,14 +46,11 @@ import (
 //  			if err != nil {
 //  				return nil, err
 //  			}
-//  			return c, nil
-//  		},
-//  		TestOnBorrow: func(c redis.Conn, t time.Time) error {
 //  			if !sentinel.TestRole(c, "master") {
-//  				return errors.New("Role check failed")
-//  			} else {
-//  				return nil
+//  				c.Close()
+//  				return nil, fmt.Errorf("%s is not redis master", masterAddr)
 //  			}
+//  			return c, nil
 //  		},
 //  	}
 //  }
