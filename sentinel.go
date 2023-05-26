@@ -285,9 +285,12 @@ func (s *Sentinel) Close() error {
 // the function returns false. Works with Redis >= 2.8.12.
 // It's not goroutine safe, but if you call this method on pooled connections
 // then you are OK.
-func TestRole(c redis.Conn, expectedRole string) bool {
+func TestRole(c redis.Conn, expectedRole string) (bool, error) {
 	role, err := getRole(c)
-	return err == nil && role == expectedRole
+	if err != nil {
+		return false, err
+	}
+	return role == expectedRole, err
 }
 
 // getRole is a convenience function supplied to query an instance (master or
