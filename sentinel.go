@@ -46,6 +46,10 @@ import (
 //  			if err != nil {
 //  				return nil, err
 //  			}
+//                      if _, err = c.Do("AUTH", "your-Password"); err != nil {
+//				c.Close()
+//				return nil, err
+//			}
 //  			if !sentinel.TestRole(c, "master") {
 //  				c.Close()
 //  				return nil, fmt.Errorf("%s is not redis master", masterAddr)
