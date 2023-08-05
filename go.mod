@@ -1,4 +1,4 @@
-module github.com/FZambia/sentinel
+module github.com/FZambia/sentinel/v2
 
 go 1.20
 
