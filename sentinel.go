@@ -19,45 +19,50 @@ import (
 //
 // Example of the simplest usage to contact master "mymaster":
 //
-//  func newSentinelPool() *redis.Pool {
-//  	sntnl := &sentinel.Sentinel{
-//  		Addrs:      []string{":26379", ":26380", ":26381"},
-//  		MasterName: "mymaster",
-//  		Dial: func(addr string) (redis.Conn, error) {
-//  			timeout := 500 * time.Millisecond
-//  			c, err := redis.DialTimeout("tcp", addr, timeout, timeout, timeout)
-//  			if err != nil {
-//  				return nil, err
-//  			}
-//  			return c, nil
-//  		},
-//  	}
-//  	return &redis.Pool{
-//  		MaxIdle:     3,
-//  		MaxActive:   64,
-//  		Wait:        true,
-//  		IdleTimeout: 240 * time.Second,
-//  		Dial: func() (redis.Conn, error) {
-//  			masterAddr, err := sntnl.MasterAddr()
-//  			if err != nil {
-//  				return nil, err
-//  			}
-//  			c, err := redis.Dial("tcp", masterAddr)
-//  			if err != nil {
-//  				return nil, err
-//  			}
-//                      if _, err = c.Do("AUTH", "your-Password"); err != nil {
-//				c.Close()
-//				return nil, err
-//			}
-//  			if !sentinel.TestRole(c, "master") {
-//  				c.Close()
-//  				return nil, fmt.Errorf("%s is not redis master", masterAddr)
-//  			}
-//  			return c, nil
-//  		},
-//  	}
-//  }
+//	func newSentinelPool() *redis.Pool {
+//		sntnl := &sentinel.Sentinel{
+//			Addrs:      []string{":26379", ":26380", ":26381"},
+//			MasterName: "mymaster",
+//			Dial: func(addr string) (redis.Conn, error) {
+//				timeout := 500 * time.Millisecond
+//				c, err := redis.DialTimeout("tcp", addr, timeout, timeout, timeout)
+//				if err != nil {
+//					return nil, err
+//				}
+//				return c, nil
+//			},
+//		}
+//		return &redis.Pool{
+//			MaxIdle:     3,
+//			MaxActive:   64,
+//			Wait:        true,
+//			IdleTimeout: 240 * time.Second,
+//			Dial: func() (redis.Conn, error) {
+//				masterAddr, err := sntnl.MasterAddr()
+//				if err != nil {
+//					return nil, err
+//				}
+//				c, err := redis.Dial("tcp", masterAddr)
+//				if err != nil {
+//					return nil, err
+//				}
+//				if _, err = c.Do("AUTH", "your-Password"); err != nil {
+//					c.Close()
+//					return nil, err
+//				}
+//				isMaster, err := sentinel.TestRole(c, "master")
+//				if err != nil {
+//					c.Close()
+//					return nil, err
+//				}
+//				if !isMaster {
+//					c.Close()
+//					return nil, fmt.Errorf("%s is not redis master", masterAddr)
+//				}
+//				return c, nil
+//			},
+//		}
+//	}
 type Sentinel struct {
 	// Addrs is a slice with known Sentinel addresses.
 	Addrs []string
